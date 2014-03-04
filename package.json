@@ -1,0 +1,16 @@
+{
+  "name": "datachannel",
+  "version": "0.0.1",
+  "description": "datachannel test",
+  "main": "server.coffee",
+  "scripts": {
+    "start": "./node_modules/coffee-script/bin/coffee server.coffee"
+  },
+  "repository": "",
+  "author": "",
+  "dependencies": {
+    "express": "3",
+    "coffee-script": "*",
+    "jade": "*"
+  }
+}
