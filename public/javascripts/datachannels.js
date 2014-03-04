@@ -1,71 +1,62 @@
-var iceServers = {
-    iceServers: [{
-        url: 'stun:stun.l.google.com:19302'
-    }]
-};
+function p2pConnection(type, callback){
+    this.signalingChannel = new SignalingChannel(function(){
+        this.create(type, callback)
+    }.bind(this));
+}
 
-//iceServers = null;
-
-var dataConstrains = {
-	reliable: false
-};
-
-var offerer = new webkitRTCPeerConnection(iceServers);
-var answerer = new webkitRTCPeerConnection(iceServers),
-answererDataChannel;
-
-var offererDataChannel = offerer.createDataChannel('RTCDataChannel', dataConstrains);
-offerer.onicecandidate = function (event) {
-	// console.log(!event || !event.candidate, event)
-    if (!event.candidate) return;
-    answerer && answerer.addIceCandidate(event.candidate);
-};
-setChannelEvents(offererDataChannel, 'offerer');
-
-
-offerer.createOffer(function (sessionDescription) {
-	// console.log("offer", sessionDescription)
-    offerer.setLocalDescription(sessionDescription);
-	// create answer
-    createAnswer(sessionDescription);
-}, function(e){
-	console.log("error", e)
-});
-
-
-function createAnswer(offerSDP) {
+p2pConnection.prototype.create = function(type, callback) {
+    var self = this;
+    var pc = new webkitRTCPeerConnection({
+        iceServers: [{
+            url: 'stun:stun.l.google.com:19302'
+        }]
+    });
+    pc.channel = pc.createDataChannel('RTCDataChannel', {reliable: false});
+    callback.call(this, pc);
     
-    answererDataChannel = answerer.createDataChannel('RTCDataChannel', dataConstrains);
+    function gotDescription(sessionDescription){
+        pc.setLocalDescription(sessionDescription, function() {
+            self.signalingChannel.send(JSON.stringify({
+                'sdp': pc.localDescription
+            }));
+        });
+    }
+    
+    function localDescCreated(desc) {
+        pc.setLocalDescription(desc, function() {
+            self.signalingChannel.send(JSON.stringify({
+                'sdp': pc.localDescription
+            }));
+        });
+    }
 
-    setChannelEvents(answererDataChannel, 'answerer');
-
-    answerer.onicecandidate = function (event) {
-       if (!event.candidate) return;
-        offerer && offerer.addIceCandidate(event.candidate);
+    pc.onicecandidate = function(event) {
+        if (!event.candidate) return;
+        self.signalingChannel.send(JSON.stringify({
+            'candidate': event.candidate
+        }));
     };
+    
+    if (type == "answer") pc.createAnswer(gotDescription);
+    else pc.createOffer(gotDescription);
 
-    answerer.setRemoteDescription(offerSDP);
-    answerer.createAnswer(function (sessionDescription) {
-		//console.log("answer", sessionDescription)
-        answerer.setLocalDescription(sessionDescription);
-        offerer.setRemoteDescription(sessionDescription);
-    }, function(e){
-		console.log("error", e)
-	});
+    this.signalingChannel.onmessage = function(event) {
+        var message = JSON.parse(event.data);
+        // console.log(message)
+        if (message.sdp) {
+            pc.setRemoteDescription(new RTCSessionDescription(message.sdp), function() {
+                if (pc.remoteDescription.type == 'offer' && type == "answer") pc.createAnswer(localDescCreated.bind(this))
+                if (pc.remoteDescription.type == 'answer' && type == "offer") pc.createOffer(localDescCreated.bind(this))
+            });
+        }
+
+        if (message.candidate) {
+            pc.addIceCandidate(new RTCIceCandidate(message.candidate));
+        }
+    };
+    
+
 }
 
-function setChannelEvents(channel, channelNameForConsoleOutput) {
-    channel.onmessage = function (event) {
-        console.debug(channelNameForConsoleOutput, 'received a message:');
-    };
 
-    channel.onopen = function () {
-        channel.send('first text message over RTP data ports');
-    };
-    channel.onclose = function (e) {
-        console.error(e);
-    };
-    channel.onerror = function (e) {
-        console.error(e);
-    };
-}
+
