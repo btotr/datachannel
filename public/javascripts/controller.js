@@ -4,41 +4,24 @@ answerer.addEventListener("datachannel", function(e) {
 
 	var video = document.getElementsByTagName("video")[0];
 	video.src = window.URL.createObjectURL(mediaSource);
-	video.addEventListener('play', function(e) {
-		console.log("play from video")
-	});
-	video.addEventListener('canplay', function(e) {
-		console.log("canplay from video")
-	});
 
 	var channel = event.channel
-	var queue = [];
 
 	mediaSource.addEventListener('sourceopen', function(e) {
 		var sourceBuffer = mediaSource.addSourceBuffer('video/webm; codecs="vorbis,vp8"');
 		sourceBuffer.addEventListener('updateend', function() {
-		  /*if (queue.length) {
-			console.log("play next chunk")
-		    sourceBuffer.appendBuffer(queue.shift());
-			if (video.paused) {
+		  	if (video.paused) {
 				console.log("play")
 				video.play();
 			}
-		  }*/
-			video.play()
-		}, false);
-		
-		
+		});
+
 		channel.onmessage = function(event) {
-			if (event.data == "done") {
-				sourceBuffer.appendBuffer(new Uint8Array(event.data));
-				return
-			}
-			//sourceBuffer.appendBuffer(new Uint8Array(event.data));
-			queue.push(new Uint8Array(event.data))
+			if (!event.data) return
+			sourceBuffer.appendBuffer(new Uint8Array(event.data));
 		};
 
-		var url = "http://localhost:8000/big-buck-bunny_trailer.webm"
+		var url = "http://localhost:8000/media/test.webm"
 		var xhr = new XMLHttpRequest();
 		xhr.open('GET', url, true);
 		xhr.responseType = 'arraybuffer';
@@ -46,12 +29,6 @@ answerer.addEventListener("datachannel", function(e) {
 			sliceAndDice(new Uint8Array(xhr.response));
 		})
 		xhr.send();
-		/*xhr.onreadystatechange = function(e) {
-			if (this.readyState === 4 && this.status === 200) {
-				sliceAndDice(new Uint8Array(xhr.response));
-			}
-		};*/
-		
 	}, false);
 
 })
@@ -64,11 +41,11 @@ function sliceAndDice(response) {
 	})
 	var reader = new FileReader();
 	reader.onload = function(e) {
-		/*var data = e.target.result
+		var data = e.target.result
 		var dataSent = 0;
 		var charSlice = 1000;
 
-		var intervalID = setInterval(function() {
+		var rateLimiter = setInterval(function() {
 			var slideEndIndex = dataSent + charSlice;
 			if (slideEndIndex > file.size) {
 				slideEndIndex = file.size;
@@ -78,13 +55,11 @@ function sliceAndDice(response) {
 			console.log(dataSent, file.size)
 			if (dataSent + 1 >= file.size) {
 				console.log("All data chunks sent.");
-				offererDataChannel.send("done");
-				//mediaSource.endOfStream();
-				clearInterval(intervalID);
+				offererDataChannel.send(0);
+				clearInterval(rateLimiter);
 			}
-		}, 20);*/
-		mediaSource.sourceBuffers[0].appendBuffer(new Uint8Array(e.target.result))
-		
+		}, 10);
+	
 	}
 	reader.readAsArrayBuffer(file);
 };
