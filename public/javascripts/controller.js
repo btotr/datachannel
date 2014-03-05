@@ -12,8 +12,6 @@ var p = new p2pConnection("offer", function(offerer){
         	sliceAndDice(new Uint8Array(xhr.response));
         })
         xhr.send();
-        
-        
 
         function sliceAndDice(response) {
         	var file = new Blob([response], {

@@ -21,14 +21,6 @@ p2pConnection.prototype.create = function(type, callback) {
             }));
         });
     }
-    
-    function localDescCreated(desc) {
-        pc.setLocalDescription(desc, function() {
-            self.signalingChannel.send(JSON.stringify({
-                'sdp': pc.localDescription
-            }));
-        });
-    }
 
     pc.onicecandidate = function(event) {
         if (!event.candidate) return;
@@ -45,8 +37,8 @@ p2pConnection.prototype.create = function(type, callback) {
         // console.log(message)
         if (message.sdp) {
             pc.setRemoteDescription(new RTCSessionDescription(message.sdp), function() {
-                if (pc.remoteDescription.type == 'offer' && type == "answer") pc.createAnswer(localDescCreated.bind(this))
-                if (pc.remoteDescription.type == 'answer' && type == "offer") pc.createOffer(localDescCreated.bind(this))
+                if (pc.remoteDescription.type == 'offer') 
+                    pc.createAnswer(gotDescription.bind(this))
             });
         }
 
